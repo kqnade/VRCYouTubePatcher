@@ -5,7 +5,9 @@
       "WebSearch",
       "WebFetch(domain:github.com)",
       "Bash(git commit:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(go run:*)",
+      "Bash(pnpm install:*)"
     ]
   }
 }

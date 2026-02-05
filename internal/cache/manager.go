@@ -241,6 +241,11 @@ func (m *Manager) GetFilePath(id string) (string, error) {
 	return filepath.Join(m.cachePath, entry.FileName), nil
 }
 
+// GetCachePath returns the cache directory path
+func (m *Manager) GetCachePath() string {
+	return m.cachePath
+}
+
 // evictIfNeeded performs LRU eviction if cache size exceeds limit
 // Must be called with lock held
 func (m *Manager) evictIfNeeded() {
