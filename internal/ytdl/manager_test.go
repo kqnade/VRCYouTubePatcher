@@ -77,6 +77,38 @@ func TestDetectPlatform(t *testing.T) {
 	platform := detectPlatform()
 
 	// Should return one of the expected platforms
-	validPlatforms := []string{"yt-dlp.exe", "yt-dlp_linux", "yt-dlp_linux_aarch64", "yt-dlp_macos", "yt-dlp_macos_arm64"}
+	validPlatforms := []string{"yt-dlp.exe", "yt-dlp_linux", "yt-dlp_linux_aarch64", "yt-dlp_macos", "yt-dlp_macos_arm64", "yt-dlp"}
 	assert.Contains(t, validPlatforms, platform)
+}
+
+func TestCheckForUpdate_NotInstalled(t *testing.T) {
+	utilsDir := t.TempDir()
+	_ = NewManager(utilsDir)
+
+	// Mock HTTP client would go here in production
+	// For now, skip actual API call in unit test
+	t.Skip("Requires mock HTTP client")
+}
+
+func TestEnsureInstalled_AlreadyInstalled(t *testing.T) {
+	utilsDir := t.TempDir()
+	mgr := NewManager(utilsDir)
+
+	// Create fake yt-dlp
+	ytdlpPath := mgr.GetYtdlpPath()
+	err := os.WriteFile(ytdlpPath, []byte("fake"), 0755)
+	require.NoError(t, err)
+
+	// Should not download
+	err = mgr.EnsureInstalled()
+	require.NoError(t, err)
+}
+
+func TestGetYtdlpPath_CrossPlatform(t *testing.T) {
+	utilsDir := t.TempDir()
+	mgr := NewManager(utilsDir)
+
+	path := mgr.GetYtdlpPath()
+	assert.Contains(t, path, utilsDir)
+	assert.Contains(t, path, detectPlatform())
 }

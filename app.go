@@ -10,6 +10,7 @@ import (
 	"vrcvideocacher/internal/cache"
 	"vrcvideocacher/internal/config"
 	"vrcvideocacher/internal/patcher"
+	"vrcvideocacher/internal/ytdl"
 	"vrcvideocacher/pkg/models"
 )
 
@@ -23,6 +24,7 @@ type App struct {
 	cacheManager  *cache.Manager
 	server        *api.Server
 	patcher       *patcher.Patcher
+	ytdlManager   *ytdl.Manager
 }
 
 // NewApp creates a new App application struct
@@ -62,6 +64,29 @@ func (a *App) startup(ctx context.Context) {
 
 	// Initialize patcher
 	a.patcher = patcher.NewPatcher(stubData)
+
+	// Initialize yt-dlp manager
+	utilsDir := filepath.Join(config.GetDataDir(), "Utils")
+	a.ytdlManager = ytdl.NewManager(utilsDir)
+
+	// Ensure yt-dlp is installed
+	if err := a.ytdlManager.EnsureInstalled(); err != nil {
+		fmt.Printf("Warning: Failed to install yt-dlp: %v\n", err)
+	}
+
+	// Auto-update yt-dlp if configured
+	if cfg.YtdlAutoUpdate {
+		if err := a.ytdlManager.AutoUpdate(); err != nil {
+			fmt.Printf("Warning: Failed to update yt-dlp: %v\n", err)
+		}
+	}
+
+	// Update config with yt-dlp path
+	if cfg.YtdlPath == "" || cfg.YtdlPath == "Utils/yt-dlp.exe" {
+		cfgManager.Update(func(c *models.Config) {
+			c.YtdlPath = a.ytdlManager.GetYtdlpPath()
+		})
+	}
 
 	// Auto-start server if configured
 	if err := a.server.Start(); err != nil {
