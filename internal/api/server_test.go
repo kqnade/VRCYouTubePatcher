@@ -156,9 +156,9 @@ func TestCORSHeaders(t *testing.T) {
 
 	server.router.ServeHTTP(w, req)
 
-	// CORS should be disabled for local server
-	// But we should handle OPTIONS requests
-	assert.Equal(t, http.StatusOK, w.Code)
+	// Local server doesn't need CORS support
+	// OPTIONS on routes that don't explicitly support it return 405
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 }
 
 func TestGetAddr(t *testing.T) {

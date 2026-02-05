@@ -83,18 +83,19 @@ func (s *Server) Start() error {
 	}
 
 	s.listener = listener
-	s.server = &http.Server{
+	httpServer := &http.Server{
 		Handler:      s.router,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
+	s.server = httpServer
 
 	s.running = true
 
 	// Start server in goroutine
 	go func() {
-		if err := s.server.Serve(s.listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := httpServer.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			fmt.Printf("Server error: %v\n", err)
 		}
 	}()
