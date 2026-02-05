@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"vrcvideocacher/internal/cache"
+	"vrcvideocacher/internal/downloader"
 	"vrcvideocacher/pkg/models"
 )
 
@@ -24,21 +25,25 @@ var (
 
 // Server represents the HTTP server
 type Server struct {
-	config   *models.Config
-	cache    *cache.Manager
-	router   *chi.Mux
-	server   *http.Server
-	listener net.Listener
-	running  bool
-	mu       sync.RWMutex
+	config     *models.Config
+	cache      *cache.Manager
+	downloader *downloader.Downloader
+	router     *chi.Mux
+	server     *http.Server
+	listener   net.Listener
+	running    bool
+	mu         sync.RWMutex
 }
 
 // NewServer creates a new HTTP server
 func NewServer(config *models.Config, cache *cache.Manager) *Server {
+	dl := downloader.NewDownloader(config, cache, 2)
+
 	s := &Server{
-		config: config,
-		cache:  cache,
-		router: chi.NewRouter(),
+		config:     config,
+		cache:      cache,
+		downloader: dl,
+		router:     chi.NewRouter(),
 	}
 
 	s.setupRoutes()
@@ -94,6 +99,11 @@ func (s *Server) Start() error {
 
 	s.running = true
 
+	// Start downloader
+	if err := s.downloader.Start(); err != nil {
+		return fmt.Errorf("failed to start downloader: %w", err)
+	}
+
 	// Start server in goroutine
 	go func() {
 		if err := httpServer.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -111,6 +121,11 @@ func (s *Server) Stop() error {
 
 	if !s.running {
 		return ErrServerNotRunning
+	}
+
+	// Stop downloader first
+	if err := s.downloader.Stop(); err != nil {
+		fmt.Printf("Downloader stop error: %v\n", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

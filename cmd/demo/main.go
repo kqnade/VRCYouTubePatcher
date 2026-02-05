@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	fmt.Println("=== VRCVideoCacher Demo ===\n")
+	fmt.Println("=== VRCVideoCacher Demo ===")
 
 	// 1. Config Manager Demo
 	fmt.Println("1. Configuration Manager Demo")

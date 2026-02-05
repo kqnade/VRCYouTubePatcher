@@ -7,8 +7,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
+
+	"vrcvideocacher/pkg/models"
 )
 
 var (
@@ -74,8 +77,18 @@ func (s *Server) handleGetVideo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cache miss - return empty (will be downloaded in background)
-	// TODO: Queue download
+	// Cache miss - queue download
+	format := models.DownloadFormatMP4
+	if avpro {
+		format = models.DownloadFormatWebm
+	}
+
+	if err := s.downloader.Queue(videoID, videoURL, format); err != nil {
+		// Log error but don't fail the request
+		fmt.Printf("Failed to queue download for %s: %v\n", videoID, err)
+	}
+
+	// Return empty (download will happen in background)
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(""))
 }
@@ -198,5 +211,10 @@ func validateCookies(cookies string) bool {
 
 // saveCookies saves cookies to file
 func (s *Server) saveCookies(path string, cookies string) error {
-	return nil // TODO: Implement file writing
+	// Write cookies to file
+	if err := os.WriteFile(path, []byte(cookies), 0644); err != nil {
+		return fmt.Errorf("failed to write cookies file: %w", err)
+	}
+
+	return nil
 }
