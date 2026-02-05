@@ -3,7 +3,9 @@
     "allow": [
       "Bash(gh api:*)",
       "WebSearch",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(git commit:*)",
+      "Bash(git add:*)"
     ]
   }
 }
