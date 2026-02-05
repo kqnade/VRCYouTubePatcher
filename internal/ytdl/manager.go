@@ -15,11 +15,17 @@ const (
 	ytdlpNightlyAPI = "https://api.github.com/repos/yt-dlp/yt-dlp-nightly-builds/releases/latest"
 )
 
+// HTTPClient interface for mocking
+type HTTPClient interface {
+	Get(url string) (*http.Response, error)
+}
+
 // Manager handles yt-dlp installation and updates
 type Manager struct {
 	utilsDir       string
 	currentVersion string
 	lastCheckTime  time.Time
+	httpClient     HTTPClient
 }
 
 // GitHubRelease represents a GitHub release
@@ -37,7 +43,18 @@ func NewManager(utilsDir string) *Manager {
 	os.MkdirAll(utilsDir, 0755)
 
 	return &Manager{
-		utilsDir: utilsDir,
+		utilsDir:   utilsDir,
+		httpClient: &http.Client{Timeout: 30 * time.Second},
+	}
+}
+
+// NewManagerWithClient creates a manager with custom HTTP client (for testing)
+func NewManagerWithClient(utilsDir string, client HTTPClient) *Manager {
+	os.MkdirAll(utilsDir, 0755)
+
+	return &Manager{
+		utilsDir:   utilsDir,
+		httpClient: client,
 	}
 }
 
@@ -61,7 +78,7 @@ func (m *Manager) GetCurrentVersion() string {
 // CheckForUpdate checks if a newer version is available
 func (m *Manager) CheckForUpdate() (string, bool, error) {
 	// Get latest release from GitHub
-	resp, err := http.Get(ytdlpNightlyAPI)
+	resp, err := m.httpClient.Get(ytdlpNightlyAPI)
 	if err != nil {
 		return "", false, fmt.Errorf("failed to check for updates: %w", err)
 	}
@@ -94,7 +111,7 @@ func (m *Manager) CheckForUpdate() (string, bool, error) {
 // Download downloads and installs yt-dlp
 func (m *Manager) Download() error {
 	// Get latest release info
-	resp, err := http.Get(ytdlpNightlyAPI)
+	resp, err := m.httpClient.Get(ytdlpNightlyAPI)
 	if err != nil {
 		return fmt.Errorf("failed to fetch release info: %w", err)
 	}
@@ -121,7 +138,7 @@ func (m *Manager) Download() error {
 
 	// Download the file
 	fmt.Printf("Downloading yt-dlp %s...\n", release.TagName)
-	resp, err = http.Get(downloadURL)
+	resp, err = m.httpClient.Get(downloadURL)
 	if err != nil {
 		return fmt.Errorf("failed to download yt-dlp: %w", err)
 	}
