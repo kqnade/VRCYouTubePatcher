@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -276,6 +277,8 @@ func (d *Downloader) executeDownload(req *DownloadRequest) error {
 	}
 
 	// Add format selection
+	// Note: Without ffmpeg, yt-dlp will download video and audio separately
+	// We detect and use the downloaded files in post-processing
 	if req.Format == models.DownloadFormatWebm {
 		// AVPro: prefer webm VP8/VP9
 		args = append(args, "-f", fmt.Sprintf("bestvideo[height<=%d][ext=webm]+bestaudio[ext=webm]/best[height<=%d][ext=webm]/best[height<=%d]", req.MaxRes, req.MaxRes, req.MaxRes))
@@ -308,9 +311,39 @@ func (d *Downloader) executeDownload(req *DownloadRequest) error {
 		return fmt.Errorf("%w: %s", ErrDownloadFailed, string(output))
 	}
 
-	// Add to cache
-	filename := filepath.Base(outputTemplate)
-	if err := d.cache.AddEntry(req.VideoID, filename); err != nil {
+	// List files in cache directory
+	files, _ := os.ReadDir(d.cache.GetCachePath())
+
+	// Find the actual downloaded file
+	// yt-dlp may create files with different names (e.g., VIDEO_ID.f395.mp4 instead of VIDEO_ID.mp4)
+	var actualFilename string
+	expectedFilename := filepath.Base(outputTemplate)
+
+	// First, try the expected filename
+	if _, err := os.Stat(outputTemplate); err == nil {
+		actualFilename = expectedFilename
+	} else {
+		// Look for any file starting with the video ID
+		for _, f := range files {
+			if strings.HasPrefix(f.Name(), req.VideoID+".") && !f.IsDir() {
+				// Prefer the expected extension
+				if strings.HasSuffix(f.Name(), "."+ext) {
+					actualFilename = f.Name()
+					break
+				}
+				// Otherwise, use any file with the video ID
+				if actualFilename == "" {
+					actualFilename = f.Name()
+				}
+			}
+		}
+	}
+
+	if actualFilename == "" {
+		return fmt.Errorf("failed to find downloaded file for %s", req.VideoID)
+	}
+
+	if err := d.cache.AddEntry(req.VideoID, actualFilename); err != nil {
 		return fmt.Errorf("failed to add to cache: %w", err)
 	}
 
