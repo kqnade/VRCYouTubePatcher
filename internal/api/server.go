@@ -57,7 +57,8 @@ func (s *Server) setupRoutes() {
 	s.router.Route("/api", func(r chi.Router) {
 		r.Get("/health", s.handleHealth)
 		r.Get("/status", s.handleStatus)
-		// More endpoints will be added in handlers.go
+		r.Get("/getvideo", s.handleGetVideo)
+		r.Post("/youtube-cookies", s.handleYouTubeCookies)
 	})
 
 	// Static file serving (cache directory)
